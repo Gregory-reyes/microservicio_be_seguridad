@@ -1,3 +1,5 @@
+#String de conexión a mongoDB
+secrets.properties
 # Compiled class file
 *.class
 
