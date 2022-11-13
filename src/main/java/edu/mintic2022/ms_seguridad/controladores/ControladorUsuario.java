@@ -1,11 +1,17 @@
 package edu.mintic2022.ms_seguridad.controladores;
 
+import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -114,8 +120,37 @@ public class ControladorUsuario {
         return repositorio.save(u);
     }
 
+    @ResponseStatus(HttpStatus.OK)
+    @PutMapping("rol/{rol}")
+    public List<Usuario> finByRol(@PathVariable String rol){
+        log.debug("[controller] [/usuarios/rol/{"+rol+"}]:[GET]");
+        List <Usuario>  u = repositorio.findByRol(rol);        
+        if(u == null){
+            log.error("[controller] [/usuarios/rol/{"+rol+"}]:[GET] el usuario no existe");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario o rol no existe");
+        }        
+        return (u);
+    }
 
-
+    //*****************VALIDAR USUARIO************************
+    @ResponseStatus(HttpStatus.OK)
+    @PostMapping("/validar")
+    public ResponseEntity <Usuario> validate (@RequestBody Usuario infoUsuario){
+        //VALIDAR EL CUERPO DE LA PETICION TENGA EMAIL Y CONTRASEÑA
+        Usuario usuarioActual= repositorio.findByEmail(infoUsuario.getE_mail());
+        if (usuarioActual!=null && usuarioActual.getContrasena().equals(convertirSHA256(infoUsuario.getContrasena()))){ //valida que usuario y contraseña sean correctos
+            usuarioActual.setContrasena(""); //al validar no devuelve contraseña
+            log.debug(usuarioActual);
+            if(usuarioActual.getRol()==null){ //valida que el usuario tenga un rol y caso de no reponde no tiene
+                log.warn("El usuario con id {"+usuarioActual.get_id()+"} no tiene asociado un rol");    
+                return new ResponseEntity<>(usuarioActual, HttpStatus.BAD_REQUEST);
+            }  
+            return new ResponseEntity<>(usuarioActual, HttpStatus.OK) ;                                           
+        }else{
+            
+            return new ResponseEntity<>(    null, HttpStatus.UNAUTHORIZED);
+        }
+    }
     private String convertirSHA256(String password){
         MessageDigest md = null;
         try{
